@@ -37,10 +37,11 @@ async function autoApplyToJobs(
     };
   }
 
+  const isHeadless = process.env.RENDER === "true" || process.env.PUPPETEER_HEADLESS === "true";
   const browser =
     existingBrowser ||
     (await puppeteer.launch({
-      headless: false,
+      headless: isHeadless,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",

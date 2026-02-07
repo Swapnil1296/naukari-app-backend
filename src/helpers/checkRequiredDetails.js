@@ -1,5 +1,10 @@
 const skipKeywords = require("../utils/common-constant");
 
+/** Escape special regex characters so term is matched literally (e.g. "node.js" won't match "nodexjs"). */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function filterJobTitle(jobTitle) {
   const hasDeveloperOrEngineer = /develop(er|ment)|engineer/i.test(jobTitle);
   const hasSkipKeyword = skipKeywords.some((keyword) =>
@@ -465,41 +470,47 @@ const skillSets = [
   }
 ];
 
+/** Build word-boundary regex for a term; escapes special chars and avoids false positives for short terms. */
+function buildTermRegex(term) {
+  const escaped = escapeRegex(term);
+  return new RegExp(`\\b${escaped}\\b`, "i");
+}
+
 function findExactSkillMatches(description, skillChips, skillSet) {
   const descriptionLower = description.toLowerCase();
-  const chipTexts = skillChips.map(chip => chip.toLowerCase());
+  const chipTexts = skillChips.map((chip) => chip.toLowerCase());
 
-  // Check if ANY of the required terms are present
-  const hasRequiredTerm = skillSet.requiredTerms.some(term => {
-    const termRegex = new RegExp(`\\b${term}\\b`, 'i');
-    return termRegex.test(descriptionLower) ||
-      chipTexts.some(chip => termRegex.test(chip));
+  const hasRequiredTerm = skillSet.requiredTerms.some((term) => {
+    const termRegex = buildTermRegex(term);
+    return (
+      termRegex.test(descriptionLower) ||
+      chipTexts.some((chip) => termRegex.test(chip))
+    );
   });
 
-  // If no required terms found, return false for both matches
   if (!hasRequiredTerm) {
-    return {
-      hasPrimaryMatch: false,
-      hasRelatedMatch: false
-    };
+    return { hasPrimaryMatch: false, hasRelatedMatch: false };
   }
 
-  const hasPrimaryMatch = skillSet.primary.some(skill => {
-    const skillRegex = new RegExp(`\\b${skill}\\b`, 'i');
-    return skillRegex.test(descriptionLower) ||
-      chipTexts.some(chip => skillRegex.test(chip));
+  const hasPrimaryMatch = skillSet.primary.some((skill) => {
+    const skillRegex = buildTermRegex(skill);
+    return (
+      skillRegex.test(descriptionLower) ||
+      chipTexts.some((chip) => skillRegex.test(chip))
+    );
   });
 
-  const hasRelatedMatch = !hasPrimaryMatch && skillSet.related.some(skill => {
-    const skillRegex = new RegExp(`\\b${skill}\\b`, 'i');
-    return skillRegex.test(descriptionLower) ||
-      chipTexts.some(chip => skillRegex.test(chip));
-  });
+  const hasRelatedMatch =
+    !hasPrimaryMatch &&
+    skillSet.related.some((skill) => {
+      const skillRegex = buildTermRegex(skill);
+      return (
+        skillRegex.test(descriptionLower) ||
+        chipTexts.some((chip) => skillRegex.test(chip))
+      );
+    });
 
-  return {
-    hasPrimaryMatch,
-    hasRelatedMatch
-  };
+  return { hasPrimaryMatch, hasRelatedMatch };
 }
 function filterJobTitleForWebDev(jobTitle) {
   // Convert job title to lowercase for case-insensitive matching
@@ -697,48 +708,92 @@ async function checkRequiredSkills(page, job) {
       { keyword: "graphql", bonus: 1.3 },
     ];
 
+    const CORE_MERN_SKILLS = ["React", "Node.js", "Express.js", "MongoDB"];
+    const DISQUALIFYING_CHIPS = [
+      "angular", "vue", "vue.js", "vuejs", "php", ".net", "django", "laravel",
+      "spring", "j2ee", "hibernate", "jms", "jpa", "sybase", "memsql"
+    ];
+    const JAVA_STACK_DESCRIPTION_TERMS = ["java", "j2ee", "spring", "hibernate", "jms", "jpa"];
+    const MIN_JOB_REQUIRED_SCORE = 8;
+    const DEMAND_MATCH_ELIGIBILITY_PCT = 45;
+
+    const javaStackInDescription = JAVA_STACK_DESCRIPTION_TERMS.filter(
+      (term) => buildTermRegex(term).test(descriptionLower)
+    ).length;
+    const isJavaStackRole = javaStackInDescription >= 2;
+
     let totalScore = 0;
+    let totalSkillScore = 0;
     let maxPossibleScore = 0;
+    let jobRequiredScore = 0;
+    let coreMernPrimaryCount = 0;
     const matchedSkills = [];
     const descriptionLower = jobInfo.description.toLowerCase();
-    const chipTexts = jobInfo.skillChips.map(chip => chip.toLowerCase());
+    const chipTexts = jobInfo.skillChips.map((chip) => chip.toLowerCase());
 
     for (const skillSet of skillSets) {
       maxPossibleScore += skillSet.weight;
 
-      // Check if any required terms are present
-      const hasRequiredTerm = skillSet.requiredTerms.some(term => {
-        const termRegex = new RegExp(`\\b${term}\\b`, 'i');
-        return termRegex.test(descriptionLower) ||
-          chipTexts.some(chip => termRegex.test(chip));
+      const hasRequiredTerm = skillSet.requiredTerms.some((term) => {
+        const termRegex = buildTermRegex(term);
+        return (
+          termRegex.test(descriptionLower) ||
+          chipTexts.some((chip) => termRegex.test(chip))
+        );
       });
 
-      if (!hasRequiredTerm) {
-        continue;
-      }
+      if (!hasRequiredTerm) continue;
 
-      const hasPrimaryMatch = skillSet.primary.some(skill => {
-        const skillRegex = new RegExp(`\\b${skill}\\b`, 'i');
-        return skillRegex.test(descriptionLower) ||
-          chipTexts.some(chip => skillRegex.test(chip));
+      jobRequiredScore += skillSet.weight;
+
+      const primaryInChips = skillSet.primary.some((skill) => {
+        const skillRegex = buildTermRegex(skill);
+        return chipTexts.some((chip) => skillRegex.test(chip));
       });
+      const primaryInDesc = skillSet.primary.some((skill) => {
+        const skillRegex = buildTermRegex(skill);
+        return skillRegex.test(descriptionLower);
+      });
+      const hasPrimaryMatch = primaryInChips || primaryInDesc;
 
       if (hasPrimaryMatch) {
-        totalScore += skillSet.weight;
+        const baseWeight = skillSet.weight;
+        const chipBonus = primaryInChips ? baseWeight * 0.15 : 0;
+        const add = baseWeight + chipBonus;
+        totalScore += add;
+        totalSkillScore += baseWeight;
         matchedSkills.push(skillSet.name);
+        if (CORE_MERN_SKILLS.includes(skillSet.name)) coreMernPrimaryCount += 1;
       } else {
-        const hasRelatedMatch = skillSet.related.some(skill => {
-          const skillRegex = new RegExp(`\\b${skill}\\b`, 'i');
-          return skillRegex.test(descriptionLower) ||
-            chipTexts.some(chip => skillRegex.test(chip));
+        const relatedInChips = skillSet.related.some((skill) => {
+          const skillRegex = buildTermRegex(skill);
+          return chipTexts.some((chip) => skillRegex.test(chip));
         });
+        const relatedInDesc = skillSet.related.some((skill) => {
+          const skillRegex = buildTermRegex(skill);
+          return skillRegex.test(descriptionLower);
+        });
+        const hasRelatedMatch = relatedInChips || relatedInDesc;
 
         if (hasRelatedMatch) {
-          totalScore += skillSet.weight * 0.5;
+          const baseWeight = skillSet.weight * 0.5;
+          const chipBonus = relatedInChips ? baseWeight * 0.2 : 0;
+          const add = baseWeight + chipBonus;
+          totalScore += add;
+          totalSkillScore += baseWeight;
           matchedSkills.push(`${skillSet.name} (related)`);
         }
       }
     }
+
+    const disqualifyingChipCount =
+      DISQUALIFYING_CHIPS.filter((q) =>
+        chipTexts.some((chip) => chip.includes(q))
+      ).length +
+      (chipTexts.some((c) => c === "java" || c === "c#" || c === "csharp")
+        ? 1
+        : 0);
+    const isDisqualifiedByChips = disqualifyingChipCount >= 2;
 
     let bonusScore = 0;
     mernSpecificChecks.forEach((check) => {
@@ -789,16 +844,90 @@ async function checkRequiredSkills(page, job) {
     bonusScore += titleBonus;
     totalScore += bonusScore;
 
+    const rawFormulaPct =
+      (totalScore / (maxPossibleScore + mernKeywordTriplets.length)) * 100;
+    const demandBasedPct =
+      jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+        ? Math.min((totalSkillScore / jobRequiredScore) * 100, 100)
+        : rawFormulaPct;
     const finalMatchPercentage = Math.min(
-      (totalScore / (maxPossibleScore + mernKeywordTriplets.length)) * 100,
+      demandBasedPct >= 0 ? demandBasedPct : rawFormulaPct,
       100
     );
 
+    const isFullstackOrMernTitle = /\b(fullstack|full stack|mern)\b/i.test(
+      job.title
+    );
+    const hasEnoughCoreMern = coreMernPrimaryCount >= 2;
+    const coreMernOk = !isFullstackOrMernTitle || hasEnoughCoreMern;
+
     const applicantLimit = Math.max(1300 * jobInfo.openingsCount, 100);
-    const isEligible =
-      finalMatchPercentage >= 25 &&
-      (jobInfo.applicantsCount === undefined ||
-        jobInfo.applicantsCount < applicantLimit);
+    const applicantOk =
+      jobInfo.applicantsCount === undefined ||
+      jobInfo.applicantsCount < applicantLimit;
+
+    const matchThreshold =
+      jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+        ? DEMAND_MATCH_ELIGIBILITY_PCT
+        : 25;
+    let isEligible =
+      finalMatchPercentage >= matchThreshold &&
+      coreMernOk &&
+      !isDisqualifiedByChips &&
+      !isJavaStackRole &&
+      applicantOk;
+
+    let ineligibilityReason = "";
+    if (isJavaStackRole)
+      ineligibilityReason =
+        "Job is Java/J2EE/Spring stack (not MERN/React/Node)";
+    else if (isDisqualifiedByChips)
+      ineligibilityReason =
+        "Job key skills are heavily non-MERN (e.g. Angular/Vue/PHP/Java)";
+    else if (!coreMernOk)
+      ineligibilityReason =
+        "Fullstack/MERN title but profile has fewer than 2 core MERN skills (React, Node, Express, MongoDB)";
+    else if (finalMatchPercentage < matchThreshold)
+      ineligibilityReason =
+        jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+          ? `Demand-based match ${finalMatchPercentage.toFixed(1)}% below threshold ${DEMAND_MATCH_ELIGIBILITY_PCT}%`
+          : `Match ${finalMatchPercentage.toFixed(1)}% below threshold`;
+
+    if (isJavaStackRole) {
+      return {
+        isEligible: false,
+        matchPercentage: finalMatchPercentage,
+        matchedSkills: [],
+        reason: ineligibilityReason,
+        score: {
+          total: totalScore,
+          max: maxPossibleScore,
+          jobRequiredScore,
+          demandBasedPct:
+            jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+              ? (totalSkillScore / jobRequiredScore) * 100
+              : null,
+        },
+      };
+    }
+
+    if (isDisqualifiedByChips) {
+      return {
+        isEligible: false,
+        matchPercentage: finalMatchPercentage,
+        matchedSkills,
+        reason: ineligibilityReason,
+        score: {
+          total: totalScore,
+          max: maxPossibleScore,
+          jobRequiredScore,
+          demandBasedPct:
+            jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+              ? (totalSkillScore / jobRequiredScore) * 100
+              : null,
+        },
+      };
+    }
 
     // const titleCheck = filterJobTitle(job.title);
     // if (!titleCheck.isValidTitle) {
@@ -875,18 +1004,22 @@ async function checkRequiredSkills(page, job) {
 
       const isEligibleWithBonus =
         finalMatchPercentageWithBonus >= 35 &&
-        (jobInfo.applicantsCount === undefined ||
-          jobInfo.applicantsCount < applicantLimit);
+        coreMernOk &&
+        applicantOk;
 
       return {
         isEligible: isEligibleWithBonus,
         matchPercentage: finalMatchPercentageWithBonus,
         initialMatchPercentage: finalMatchPercentage,
         matchedSkills,
-        // skills: jobInfo.skillChips,
         score: {
           total: totalScore,
           max: maxPossibleScore,
+          jobRequiredScore,
+          demandBasedPct:
+            jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+              ? (totalSkillScore / jobRequiredScore) * 100
+              : null,
         },
         reason: lowMatchPercentage && titleCheck.isValidTitle
           ? "Low match percentage boosted due to key skills match and suitable title"
@@ -898,13 +1031,17 @@ async function checkRequiredSkills(page, job) {
       isEligible,
       matchPercentage: finalMatchPercentage,
       matchedSkills,
-      // skills: jobInfo.skillChips,
       score: {
         total: totalScore,
         max: maxPossibleScore,
         bonus: bonusScore,
+        jobRequiredScore,
+        demandBasedPct:
+          jobRequiredScore >= MIN_JOB_REQUIRED_SCORE
+            ? (totalSkillScore / jobRequiredScore) * 100
+            : null,
       },
-      reason: "",
+      reason: isEligible ? "" : ineligibilityReason,
     };
 
   } catch (error) {

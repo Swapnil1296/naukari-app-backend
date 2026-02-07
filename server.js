@@ -380,9 +380,10 @@ async function runScraper(config) {
 
       logger.info('Launching browser...');
       
+      const isHeadless = process.env.RENDER === 'true' || process.env.PUPPETEER_HEADLESS === 'true';
       try {
         scraperState.browser = await puppeteer.launch({
-          headless: false,
+          headless: isHeadless,
           timeout: 90000, // Increase timeout to 90 seconds
           protocolTimeout: 90000,
           args: [
@@ -412,7 +413,7 @@ async function runScraper(config) {
         // Try fallback: launch without userDataDir
         logger.info('Attempting fallback browser launch without userDataDir...');
         scraperState.browser = await puppeteer.launch({
-          headless: false,
+          headless: isHeadless,
           timeout: 90000,
           args: [
             '--no-sandbox',
@@ -471,7 +472,12 @@ async function runScraper(config) {
   }
 }
 
-// Health check
+// Root (for Render / default health checks)
+app.get('/', (req, res) => {
+  res.json({ service: 'job-scraper-backend', status: 'running', docs: '/api/status' });
+});
+
+// Health check (Render uses this when healthCheckPath is set)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

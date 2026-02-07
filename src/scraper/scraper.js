@@ -166,6 +166,11 @@ async function handleScrapingFailure(
     attachments
   );
 }
+// Title MUST contain at least one of these before auto-apply (filters e.g. "Platform Engineer", "Software Engineer" without React/MERN/Fullstack)
+const REACT_MERN_FULLSTACK_TITLE_KEYWORDS = [
+  "react", "reactjs", "react.js", "mern", "mern stack", "fullstack", "full stack", "full-stack"
+];
+
 function filterJobTitle(jobTitle) {
   // Convert job title to lowercase once for efficiency
   const lowercaseJobTitle = jobTitle.toLowerCase();
@@ -173,15 +178,20 @@ function filterJobTitle(jobTitle) {
   // Check for Developer or Engineer
   const hasDeveloperOrEngineer = /developer|engineer/i.test(lowercaseJobTitle);
 
+  // Must have React or MERN or Fullstack in title (filters Platform Engineer, generic Software Engineer, etc.)
+  const hasReactOrMernOrFullstack = REACT_MERN_FULLSTACK_TITLE_KEYWORDS.some((keyword) => {
+    const k = keyword.trim().toLowerCase();
+    return lowercaseJobTitle.includes(k);
+  });
+
   // Check for skip keywords using word boundaries and escaping special characters
   const hasSkipKeyword = skipKeywords.some((keyword) => {
-    // Escape special regex characters
-    const escapedKeyword = keyword.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+    const escapedKeyword = keyword.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`\\b${escapedKeyword}\\b`, "i");
     return pattern.test(lowercaseJobTitle);
   });
 
-  return hasDeveloperOrEngineer && !hasSkipKeyword;
+  return hasDeveloperOrEngineer && hasReactOrMernOrFullstack && !hasSkipKeyword;
 }
 
 function filterCompany(company) {
@@ -443,9 +453,10 @@ async function scrapeNaukriJobs(options = {}, credentials = null, emailConfig) {
   let partialJobs = [];
 
   try {
+    const isHeadless = process.env.RENDER === "true" || process.env.PUPPETEER_HEADLESS === "true";
     logger.info("Launching browser...");
     browser = await puppeteer.launch({
-      headless: false,
+      headless: isHeadless,
       timeout: 90000,
       protocolTimeout: 90000,
       defaultViewport: null,

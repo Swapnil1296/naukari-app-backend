@@ -99,4 +99,23 @@ tail -f ../scraper-errors.log
 
 ## Deployment
 
-See `../README-DEPLOYMENT.md` for Railway/Render deployment instructions.
+### Deploy on Render
+
+1. **Connect repo:** In [Render Dashboard](https://dashboard.render.com) → **New** → **Web Service** → connect your Git repo (use the `backend` folder as **Root Directory** if the repo is the full app).
+
+2. **Settings:**
+   - **Runtime:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/health` (optional)
+
+3. **Environment variables** (Dashboard → Environment): set at least:
+   - `NODE_ENV` = `production`
+   - `PUPPETEER_HEADLESS` = `true` (Puppeteer runs headless on Render)
+   - `PORT` is set by Render; add `MONGODB_URI`, `NAUKRI_USERNAME`, `NAUKRI_PASSWORD`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_RECIPIENT`, `FRONTEND_URL` (and `OPENAI_API_KEY` if using AI).
+
+4. **Optional:** Use the included `render.yaml` (Render Blueprint) to define the service; override or add env vars in the Dashboard.
+
+**Note:** Scraping/auto-apply uses Puppeteer; on Render the browser runs headless. For heavy or long-running scrapes, consider memory/time limits on the free tier.
+
+See `../README-DEPLOYMENT.md` for Railway deployment if needed.

@@ -1,7 +1,7 @@
 {
-  "successfullyApplied": 25,
+  "successfullyApplied": 0,
   "successfullyAppliedTillNow": 1345,
-  "lastResetDate": "2025-07-23",
-  "shouldSendEmailCounter": 4,
-  "lastCounterResetDate": "2026-02-01"
+  "lastResetDate": "2026-02-07",
+  "shouldSendEmailCounter": 1,
+  "lastCounterResetDate": "2026-02-07"
 }

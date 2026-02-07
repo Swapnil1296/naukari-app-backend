@@ -15,7 +15,7 @@ class JobService {
    */
   async saveJob(jobData) {
     if (!this.isConnected()) {
-      logger.warn('MongoDB not connected, skipping job save');
+      logger.info('MongoDB not connected, skipping job save');
       return null;
     }
 
@@ -63,7 +63,7 @@ class JobService {
    */
   async saveJobs(jobsArray) {
     if (!this.isConnected()) {
-      logger.warn('MongoDB not connected, skipping bulk job save');
+      logger.info('MongoDB not connected, skipping bulk job save');
       return {
         saved: 0,
         duplicates: 0,

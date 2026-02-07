@@ -1,0 +1,24 @@
+# Render Blueprint (optional - can also configure in Dashboard)
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: job-scraper-backend
+    runtime: node
+    region: oregon
+
+    buildCommand: npm install
+    startCommand: npm start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_HEADLESS
+        value: "true"
+      # Add these in Render Dashboard > Environment (never commit secrets):
+      # - MONGODB_URI
+      # - NAUKRI_USERNAME, NAUKRI_PASSWORD
+      # - EMAIL_USER, EMAIL_PASS, EMAIL_RECIPIENT
+      # - FRONTEND_URL (your frontend URL for CORS)
+      # Optional: OPENAI_API_KEY, BACKEND_URL
+
+    healthCheckPath: /health

@@ -190,7 +190,24 @@ const skipKeywords = [
   "test",
   "analyst",
   "qa",
-  "data", "QE", "EDA", "'"
+  "data", "QE", "EDA", "'",
+
+  // Non-software / non-web roles (CapEx, civil, mechanical, etc.)
+  "capex",
+  "capital expenditure",
+  "expenditure",
+  "civil",
+  "mechanical",
+  "electrical",
+  "manufacturing",
+  "industrial",
+  "chemical",
+  "petroleum",
+  "facilities",
+  "maintenance",
+  "quality engineer",
+  "process engineer",
+  "project engineer",
 ];
 
 module.exports = skipKeywords;
