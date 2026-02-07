@@ -470,6 +470,8 @@ async function scrapeNaukriJobs(options = {}, credentials = null, emailConfig) {
         "--disable-dev-shm-usage",
         "--no-first-run",
         "--no-default-browser-check",
+        "--disable-http2",
+        "--disable-gpu",
       ],
       ignoreDefaultArgs: ['--disable-extensions'],
     });
@@ -576,18 +578,19 @@ async function scrapeNaukriJobs(options = {}, credentials = null, emailConfig) {
 
     let pageLoaded = false;
     let retryCount = 0;
-    while (!pageLoaded && retryCount < 3) {
+    const maxRetries = 4;
+    while (!pageLoaded && retryCount < maxRetries) {
       try {
         await page.goto(url, {
-          waitUntil: ["networkidle0", "domcontentloaded"],
-          timeout: 30000,
+          waitUntil: "domcontentloaded",
+          timeout: 45000,
         });
-        await page.waitForSelector(".srp-jobtuple-wrapper", { timeout: 15000 });
+        await page.waitForSelector(".srp-jobtuple-wrapper", { timeout: 25000 });
         pageLoaded = true;
       } catch (error) {
         retryCount++;
         logger.error(`Page load attempt ${retryCount} failed:`, error);
-        if (retryCount === 3) throw error;
+        if (retryCount >= maxRetries) throw error;
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
@@ -607,14 +610,14 @@ async function scrapeNaukriJobs(options = {}, credentials = null, emailConfig) {
         let pageLoadSuccess = false;
         let pageRetries = 0;
 
-        while (!pageLoadSuccess && pageRetries < 3) {
+        while (!pageLoadSuccess && pageRetries < 4) {
           try {
             await page.goto(pageUrl, {
-              waitUntil: ["networkidle0", "domcontentloaded"],
-              timeout: 30000,
+              waitUntil: "domcontentloaded",
+              timeout: 45000,
             });
             await page.waitForSelector(".srp-jobtuple-wrapper", {
-              timeout: 15000,
+              timeout: 25000,
             });
             pageLoadSuccess = true;
           } catch (error) {

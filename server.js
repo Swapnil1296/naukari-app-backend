@@ -397,6 +397,7 @@ async function runScraper(config) {
             '--no-first-run',
             '--no-default-browser-check',
             '--disable-blink-features=AutomationControlled',
+            '--disable-http2',
           ],
           userDataDir: path.join(
             require('os').tmpdir(),
@@ -421,6 +422,7 @@ async function runScraper(config) {
             '--disable-features=FederatedCredentialManagement',
             '--disable-dev-shm-usage',
             '--window-size=1920,1080',
+            '--disable-http2',
           ],
         });
         logger.info('Browser launched with fallback method');
