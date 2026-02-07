@@ -4,11 +4,15 @@ const logger = require("../utils/logger");
 
 async function createEmailTransporter() {
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
       user: email.user,
       pass: email.pass,
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
   });
 }
 

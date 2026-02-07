@@ -40,9 +40,7 @@ const jobSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index for faster queries
-jobSchema.index({ createdAt: 1 });
-jobSchema.index({ link: 1 }, { unique: true });
+// createdAt index is created by expires (TTL); link unique index is created by unique: true above
 jobSchema.index({ status: 1 });
 
 // Virtual for checking if applied

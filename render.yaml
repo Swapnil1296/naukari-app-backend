@@ -6,7 +6,8 @@ services:
     runtime: node
     region: oregon
 
-    buildCommand: npm install
+    # Chrome must be installed during build so Puppeteer can find it at runtime
+    buildCommand: npm install && npx puppeteer browsers install chrome
     startCommand: npm start
 
     envVars:
@@ -14,6 +15,9 @@ services:
         value: production
       - key: PUPPETEER_HEADLESS
         value: "true"
+      # Puppeteer: cache inside project so Chrome from build is available at runtime
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/src/.cache/puppeteer
       # Add these in Render Dashboard > Environment (never commit secrets):
       # - MONGODB_URI
       # - NAUKRI_USERNAME, NAUKRI_PASSWORD

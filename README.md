@@ -105,17 +105,20 @@ tail -f ../scraper-errors.log
 
 2. **Settings:**
    - **Runtime:** Node
-   - **Build Command:** `npm install`
+   - **Build Command:** `npm install && npx puppeteer browsers install chrome`
    - **Start Command:** `npm start`
    - **Health Check Path:** `/health` (optional)
 
 3. **Environment variables** (Dashboard → Environment): set at least:
    - `NODE_ENV` = `production`
-   - `PUPPETEER_HEADLESS` = `true` (Puppeteer runs headless on Render)
+   - `PUPPETEER_HEADLESS` = `true`
+   - `PUPPETEER_CACHE_DIR` = `/opt/render/project/src/.cache/puppeteer` (so Chrome is found at runtime)
    - `PORT` is set by Render; add `MONGODB_URI`, `NAUKRI_USERNAME`, `NAUKRI_PASSWORD`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_RECIPIENT`, `FRONTEND_URL` (and `OPENAI_API_KEY` if using AI).
 
 4. **Optional:** Use the included `render.yaml` (Render Blueprint) to define the service; override or add env vars in the Dashboard.
 
 **Note:** Scraping/auto-apply uses Puppeteer; on Render the browser runs headless. For heavy or long-running scrapes, consider memory/time limits on the free tier.
+
+**Email on Render:** If you get "Connection timeout" with Gmail, use a Gmail App Password (not your normal password), and ensure your Render service can reach `smtp.gmail.com:465`. Some networks block outbound SMTP; if it still fails, consider a transactional email provider (e.g. SendGrid, Resend).
 
 See `../README-DEPLOYMENT.md` for Railway deployment if needed.
