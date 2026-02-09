@@ -5,6 +5,11 @@ const path = require('path');
 // Load environment variables from backend directory
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Use Render's Puppeteer cache only on Render; locally ignore it so Chrome is found
+if (process.env.RENDER !== 'true') {
+  delete process.env.PUPPETEER_CACHE_DIR;
+}
+
 // Connect to MongoDB
 const connectDB = require('./config/database');
 connectDB();

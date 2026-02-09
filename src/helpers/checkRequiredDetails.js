@@ -717,19 +717,12 @@ async function checkRequiredSkills(page, job) {
     const MIN_JOB_REQUIRED_SCORE = 8;
     const DEMAND_MATCH_ELIGIBILITY_PCT = 45;
 
+    const descriptionLower = jobInfo.description.toLowerCase();
+    const chipTexts = jobInfo.skillChips.map((chip) => chip.toLowerCase());
+
     const javaStackInDescription = JAVA_STACK_DESCRIPTION_TERMS.filter(
       (term) => buildTermRegex(term).test(descriptionLower)
     ).length;
-    const isJavaStackRole = javaStackInDescription >= 2;
-
-    let totalScore = 0;
-    let totalSkillScore = 0;
-    let maxPossibleScore = 0;
-    let jobRequiredScore = 0;
-    let coreMernPrimaryCount = 0;
-    const matchedSkills = [];
-    const descriptionLower = jobInfo.description.toLowerCase();
-    const chipTexts = jobInfo.skillChips.map((chip) => chip.toLowerCase());
 
     for (const skillSet of skillSets) {
       maxPossibleScore += skillSet.weight;

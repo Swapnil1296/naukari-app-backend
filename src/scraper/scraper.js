@@ -2,6 +2,11 @@ const puppeteer = require("puppeteer");
 const fs = require("fs/promises");
 const path = require("path");
 const logger = require("../utils/logger");
+
+// Use Render's Puppeteer cache only on Render; locally ignore so Chrome is found
+if (process.env.RENDER !== "true") {
+  delete process.env.PUPPETEER_CACHE_DIR;
+}
 const { sendEmailNotification } = require("../config/emailService");
 const { extractJobsFromPage } = require("./pageExtractor");
 const skipKeywords = require("../utils/common-constant");
